@@ -1,0 +1,6 @@
+[project]
+name = "banking-lab"
+version = "0.1.0"
+description = "Secure Banking System laboratory for SOFT-753 Automation with Python (CENFOTEC)"
+requires-python = ">=3.13"
+dependencies = []
