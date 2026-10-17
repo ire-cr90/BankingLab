@@ -539,10 +539,46 @@ def add_account_option() -> None:
         print("The account could not be added. The number must have exactly 10 digits.")
 
 
+def deposit_option() -> None:
+    """Deposit money into a customer account."""
+    account = select_account(select_customer())
+    amount = read_float(f"Amount to deposit ({account.currency}): ")
+    account.deposit(amount)
+    print(f"Deposit completed. {account}")
+
+
+def withdraw_option() -> None:
+    """Withdraw money from a customer account."""
+    account = select_account(select_customer())
+    amount = read_float(f"Amount to withdraw ({account.currency}): ")
+    account.withdraw(amount)
+    print(f"Withdrawal completed. {account}")
+
+
+def convert_currency_option() -> None:
+    """Show the balance of a customer account in another currency."""
+    account = select_account(select_customer())
+    target_currency = read_text("Target currency: ").upper()
+    suggested_rate = None
+    prompt = f"Exchange rate (1 {account.currency} = ? {target_currency}): "
+    if target_currency in BankAccount.RATES_TO_USD:
+        suggested_rate = (
+            BankAccount.RATES_TO_USD[account.currency] / BankAccount.RATES_TO_USD[target_currency]
+        )
+        prompt = (
+            f"Exchange rate (1 {account.currency} = ? {target_currency}) [{suggested_rate:.6g}]: "
+        )
+    exchange_rate = read_float(prompt, suggested_rate)
+    account.convert_currency(target_currency, exchange_rate)
+
+
 MenuAction = Callable[[], None]
 MENU_OPTIONS: dict[str, tuple[str, MenuAction]] = {
     "1": ("Add a new customer", add_customer_option),
     "2": ("Add a new account to a customer", add_account_option),
+    "3": ("Deposit", deposit_option),
+    "4": ("Withdraw", withdraw_option),
+    "5": ("Convert currency (show balance in another currency)", convert_currency_option),
 }
 
 

@@ -727,3 +727,81 @@ def test_menu_rejects_unknown_customer_and_bad_ids(capsys):
 def test_menu_rejects_invalid_account_type(capsys):
     output = run_menu([*add_customer_answers(), "2", "1", "investment", "0"], capsys)
     assert "Error: Account type must be 'checking' or 'savings'." in output
+
+
+def customer_with_checking_answers(balance: str = "500") -> list[str]:
+    return [*add_customer_answers(), "2", "1", "checking", "1234567890", "", balance]
+
+
+def test_menu_deposit(capsys):
+    output = run_menu(
+        [*customer_with_checking_answers(), "3", "1", "1234567890", "75", "0"], capsys
+    )
+    assert "Deposit completed. Checking account 1234567890: 575.00 USD" in output
+
+
+def test_menu_deposit_rejects_negative_and_text_amounts(capsys):
+    answers = [
+        *customer_with_checking_answers(),
+        "3",
+        "1",
+        "1234567890",
+        "-5",
+        "3",
+        "1",
+        "1234567890",
+        "five",
+        "0",
+    ]
+    output = run_menu(answers, capsys)
+    assert "Error: Deposit amount cannot be negative." in output
+    assert "Error: 'five' is not a valid number." in output
+    assert banking.customers[0].find_account("1234567890").balance == 500.0
+
+
+def test_menu_deposit_into_unknown_account(capsys):
+    output = run_menu([*customer_with_checking_answers(), "3", "1", "9999999999", "0"], capsys)
+    assert "Error: Customer 1 has no account 9999999999." in output
+
+
+def test_menu_withdraw(capsys):
+    output = run_menu(
+        [*customer_with_checking_answers(), "4", "1", "1234567890", "125", "0"], capsys
+    )
+    assert "Withdrawal completed. Checking account 1234567890: 375.00 USD" in output
+
+
+def test_menu_withdraw_with_insufficient_funds(capsys):
+    output = run_menu(
+        [*customer_with_checking_answers(), "4", "1", "1234567890", "900", "0"], capsys
+    )
+    assert "Insufficient funds: Insufficient funds in account 1234567890" in output
+    assert banking.customers[0].find_account("1234567890").balance == 500.0
+
+
+def test_menu_convert_currency_with_custom_rate(capsys):
+    output = run_menu(
+        [*customer_with_checking_answers(), "5", "1", "1234567890", "crc", "520", "0"], capsys
+    )
+    assert "500.00 USD = 260000.00 CRC" in output
+
+
+def test_menu_convert_currency_with_suggested_rate(capsys):
+    output = run_menu(
+        [*customer_with_checking_answers("108"), "5", "1", "1234567890", "EUR", "", "0"], capsys
+    )
+    assert "108.00 USD = 100.00 EUR" in output
+
+
+def test_menu_convert_currency_requires_rate_for_unknown_currency(capsys):
+    output = run_menu(
+        [*customer_with_checking_answers(), "5", "1", "1234567890", "JPY", "", "0"], capsys
+    )
+    assert "Error: This field cannot be empty." in output
+
+
+def test_menu_convert_currency_rejects_non_positive_rate(capsys):
+    output = run_menu(
+        [*customer_with_checking_answers(), "5", "1", "1234567890", "EUR", "0", "0"], capsys
+    )
+    assert "Error: Exchange rate must be greater than zero." in output
