@@ -364,3 +364,64 @@ class Customer:
         for account in self.__accounts:
             total += BankAccount.to_usd(account.balance, account.currency)
         return round(total, 2)
+
+    def transfer(
+        self, amount: float, source_account_number: str, target_account_number: str
+    ) -> bool:
+        """Move money between two different accounts of this customer.
+
+        Both accounts must use the same currency. If any step fails the source
+        balance is restored, so money is never left half moved.
+        """
+        source = self.find_account(source_account_number)
+        target = self.find_account(target_account_number)
+        if source is None or target is None:
+            logger.error(
+                "Customer %d: transfer rejected, accounts %s and %s must both belong to them",
+                self._user_id,
+                source_account_number,
+                target_account_number,
+            )
+            return False
+        if source is target:
+            logger.error(
+                "Customer %d: transfer rejected, source and target are the same account %s",
+                self._user_id,
+                source_account_number,
+            )
+            return False
+        if source.currency != target.currency:
+            logger.error(
+                "Customer %d: transfer rejected, currencies differ (%s to %s)",
+                self._user_id,
+                source.currency,
+                target.currency,
+            )
+            return False
+        original_source_balance = source.balance
+        try:
+            source.withdraw(amount)
+            try:
+                target.deposit(amount)
+            except (ValueError, InsufficientFundsError):
+                source.balance = original_source_balance
+                raise
+        except (ValueError, InsufficientFundsError) as error:
+            logger.error(
+                "Customer %d: transfer of %s from %s to %s failed: %s",
+                self._user_id,
+                amount,
+                source_account_number,
+                target_account_number,
+                error,
+            )
+            return False
+        logger.info(
+            "Customer %d: transferred %.2f %s from %s to %s",
+            self._user_id,
+            amount,
+            source.currency,
+            source_account_number,
+            target_account_number,
+        )
+        return True

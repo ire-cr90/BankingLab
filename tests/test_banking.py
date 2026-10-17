@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -471,3 +472,74 @@ def test_total_balance_converts_other_currencies_to_usd(customer, checking):
     customer.add_account(BankAccount("2222222222", "EUR", balance=100.0))
     customer.add_account(BankAccount("3333333333", "CRC", balance=100000.0))
     assert customer.get_total_balance() == pytest.approx(500.0 + 108.0 + 190.0)
+
+
+@pytest.fixture
+def customer_with_accounts(customer, checking, savings) -> Customer:
+    customer.add_account(checking)
+    customer.add_account(savings)
+    return customer
+
+
+def test_transfer_moves_money(customer_with_accounts, checking, savings, caplog):
+    with caplog.at_level(logging.INFO, logger="banking"):
+        assert customer_with_accounts.transfer(200, "1234567890", "0987654321") is True
+    assert checking.balance == 300.0
+    assert savings.balance == 500.0
+    assert caplog.records[-1].levelname == "INFO"
+    assert "transferred 200.00 USD" in caplog.text
+
+
+def test_transfer_from_savings_respects_minimum(customer_with_accounts, checking, savings, caplog):
+    assert customer_with_accounts.transfer(250, "0987654321", "1234567890") is False
+    assert savings.balance == 300.0
+    assert checking.balance == 500.0
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "transfer of 250" in caplog.text
+
+
+def test_transfer_with_insufficient_funds_fails(customer_with_accounts, checking, savings):
+    assert customer_with_accounts.transfer(1000, "1234567890", "0987654321") is False
+    assert checking.balance == 500.0
+    assert savings.balance == 300.0
+
+
+def test_transfer_with_negative_amount_fails(customer_with_accounts, checking, savings):
+    assert customer_with_accounts.transfer(-10, "1234567890", "0987654321") is False
+    assert checking.balance == 500.0
+    assert savings.balance == 300.0
+
+
+def test_transfer_to_unknown_account_fails(customer_with_accounts, checking, caplog):
+    assert customer_with_accounts.transfer(10, "1234567890", "9999999999") is False
+    assert checking.balance == 500.0
+    assert "must both belong to them" in caplog.text
+
+
+def test_transfer_to_another_customers_account_fails(customer_with_accounts, adult_birth_date):
+    other = Customer("Luis", adult_birth_date)
+    other.add_account(BankAccount("5555555555", balance=10.0))
+    assert customer_with_accounts.transfer(10, "1234567890", "5555555555") is False
+
+
+def test_transfer_to_same_account_fails(customer_with_accounts, checking, caplog):
+    assert customer_with_accounts.transfer(10, "1234567890", "1234567890") is False
+    assert checking.balance == 500.0
+    assert "same account" in caplog.text
+
+
+def test_transfer_between_currencies_fails(customer, checking, caplog):
+    euros = BankAccount("2222222222", "EUR", balance=100.0)
+    customer.add_account(checking)
+    customer.add_account(euros)
+    assert customer.transfer(10, "1234567890", "2222222222") is False
+    assert checking.balance == 500.0
+    assert euros.balance == 100.0
+    assert "currencies differ" in caplog.text
+
+
+def test_transfer_restores_source_when_deposit_fails(customer_with_accounts, checking, savings):
+    with patch.object(BankAccount, "deposit", side_effect=ValueError("boom")):
+        assert customer_with_accounts.transfer(100, "1234567890", "0987654321") is False
+    assert checking.balance == 500.0
+    assert savings.balance == 300.0
