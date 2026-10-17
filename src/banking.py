@@ -163,3 +163,30 @@ class BankAccount:
             self.currency,
         )
         return self.balance
+
+    def convert_currency(self, target_currency: str, exchange_rate: float) -> float:
+        """Print and return the balance converted with the given rate.
+
+        The account itself is not modified.
+        """
+        if exchange_rate <= 0:
+            logger.error(
+                "Rejected non-positive exchange rate %s for account %s",
+                exchange_rate,
+                self.account_number,
+            )
+            raise ValueError("Exchange rate must be greater than zero.")
+        target = str(target_currency).strip().upper()
+        converted = self.balance * exchange_rate
+        print(
+            f"Account {self.account_number}: {self.balance:.2f} {self.currency} = "
+            f"{converted:.2f} {target}"
+        )
+        logger.info(
+            "Converted balance of account %s to %.2f %s at rate %s",
+            self.account_number,
+            converted,
+            target,
+            exchange_rate,
+        )
+        return converted

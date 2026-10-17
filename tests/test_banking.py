@@ -211,3 +211,19 @@ def test_minimum_savings_balance_per_currency(currency, expected):
 def test_minimum_savings_balance_rejects_unknown_currency():
     with pytest.raises(ValueError):
         BankAccount.minimum_savings_balance("GBP")
+
+
+def test_convert_currency_returns_and_prints_converted_balance(checking, capsys):
+    result = checking.convert_currency("crc", 520.0)
+    assert result == pytest.approx(260000.0)
+    assert "260000.00 CRC" in capsys.readouterr().out
+    assert checking.balance == 500.0
+    assert checking.currency == "USD"
+
+
+@pytest.mark.parametrize("rate", [0, -1.5])
+def test_convert_currency_rejects_non_positive_rate(checking, caplog, rate):
+    with pytest.raises(ValueError):
+        checking.convert_currency("EUR", rate)
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "Rejected non-positive exchange rate" in caplog.text
