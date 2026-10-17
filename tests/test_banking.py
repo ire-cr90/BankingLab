@@ -283,3 +283,15 @@ def test_is_valid_account_number_accepts_ten_digits(account_number):
 )
 def test_is_valid_account_number_rejects_invalid_values(account_number):
     assert BankAccount.is_valid_account_number(account_number) is False
+
+
+def test_account_repr(checking):
+    assert repr(checking) == (
+        "BankAccount(account_number='1234567890', currency='USD', "
+        "account_type='checking', balance=500.00)"
+    )
+
+
+def test_account_str(savings):
+    savings.deposit(1000)
+    assert str(savings) == "Savings account 0987654321: 1,300.00 USD"

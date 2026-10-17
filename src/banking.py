@@ -230,3 +230,17 @@ class BankAccount:
             isinstance(account_number, str)
             and re.fullmatch(r"\d{10}", account_number, re.ASCII) is not None
         )
+
+    def __repr__(self) -> str:
+        """Return an unambiguous representation of the account."""
+        return (
+            f"BankAccount(account_number={self.account_number!r}, currency={self.currency!r}, "
+            f"account_type={self.account_type!r}, balance={self.balance:.2f})"
+        )
+
+    def __str__(self) -> str:
+        """Return a human-friendly description of the account."""
+        return (
+            f"{self.account_type.capitalize()} account {self.account_number}: "
+            f"{self.balance:,.2f} {self.currency}"
+        )
