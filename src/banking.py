@@ -101,3 +101,21 @@ class BankAccount:
     def get_currency(self) -> str:
         """Return the account currency code."""
         return self.currency
+
+    def deposit(self, amount: float) -> float:
+        """Add a non-negative amount to the balance and return the new balance."""
+        if amount < 0:
+            logger.error(
+                "Rejected negative deposit of %.2f into account %s", amount, self.account_number
+            )
+            raise ValueError("Deposit amount cannot be negative.")
+        self.balance = self.balance + amount
+        logger.info(
+            "Deposited %.2f %s into account %s. New balance: %.2f %s",
+            amount,
+            self.currency,
+            self.account_number,
+            self.balance,
+            self.currency,
+        )
+        return self.balance

@@ -116,3 +116,27 @@ def test_balance_setter_rejects_negative_values(checking, caplog):
 def test_constructor_validates_initial_balance_through_setter():
     with pytest.raises(ValueError):
         BankAccount("1234567890", balance=-10.0)
+
+
+def test_deposit_increases_balance(checking):
+    assert checking.deposit(150.25) == pytest.approx(650.25)
+    assert checking.balance == pytest.approx(650.25)
+
+
+def test_deposit_logs_new_balance(checking, caplog):
+    with caplog.at_level(logging.INFO, logger="banking"):
+        checking.deposit(100)
+    assert caplog.records[-1].levelname == "INFO"
+    assert "New balance: 600.00 USD" in caplog.text
+
+
+def test_deposit_of_zero_is_allowed(checking):
+    assert checking.deposit(0) == 500.0
+
+
+def test_deposit_rejects_negative_amount(checking, caplog):
+    with pytest.raises(ValueError):
+        checking.deposit(-5)
+    assert checking.balance == 500.0
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "Rejected negative deposit" in caplog.text
