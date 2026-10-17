@@ -396,3 +396,48 @@ def test_rejected_customer_does_not_consume_an_id(adult_birth_date):
 )
 def test_calculate_age_considers_month_and_day(birth_date, today, expected):
     assert Customer.calculate_age(birth_date, today) == expected
+
+
+@pytest.fixture
+def customer(adult_birth_date) -> Customer:
+    return Customer("Ana Mora", adult_birth_date)
+
+
+def test_add_account_with_valid_number(customer, checking, caplog):
+    with caplog.at_level(logging.INFO, logger="banking"):
+        assert customer.add_account(checking) is True
+    assert customer.accounts == [checking]
+    assert "added checking account 1234567890" in caplog.text
+
+
+@pytest.mark.parametrize("account_number", ["123456789", "12345678901", "abcdefghij"])
+def test_add_account_rejects_invalid_number(customer, account_number, caplog):
+    assert customer.add_account(BankAccount(account_number)) is False
+    assert customer.accounts == []
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "invalid account number" in caplog.text
+
+
+def test_add_account_rejects_duplicates(customer, checking, caplog):
+    customer.add_account(checking)
+    assert customer.add_account(BankAccount("1234567890", "EUR")) is False
+    assert len(customer.accounts) == 1
+    assert "already exists" in caplog.text
+
+
+def test_add_account_rejects_non_accounts(customer):
+    assert customer.add_account("1234567890") is False
+
+
+def test_accounts_property_returns_a_copy(customer, checking):
+    customer.add_account(checking)
+    accounts = customer.accounts
+    accounts.clear()
+    assert customer.accounts == [checking]
+
+
+def test_find_account(customer, checking, savings):
+    customer.add_account(checking)
+    customer.add_account(savings)
+    assert customer.find_account("0987654321") is savings
+    assert customer.find_account("5555555555") is None

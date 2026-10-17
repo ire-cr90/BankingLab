@@ -318,3 +318,36 @@ class Customer:
     def accounts(self) -> list[BankAccount]:
         """Return a copy of the customer accounts list."""
         return list(self.__accounts)
+
+    def find_account(self, account_number: str) -> BankAccount | None:
+        """Return the customer account with the given number, or None if it does not exist."""
+        for account in self.__accounts:
+            if account.account_number == account_number:
+                return account
+        return None
+
+    def add_account(self, account: BankAccount) -> bool:
+        """Add an account with a valid, non-duplicated number and report whether it was added."""
+        if not isinstance(account, BankAccount):
+            logger.error("Customer %d: rejected an object that is not a BankAccount", self._user_id)
+            return False
+        if not BankAccount.is_valid_account_number(account.account_number):
+            logger.error(
+                "Customer %d: invalid account number '%s', it must have exactly 10 digits",
+                self._user_id,
+                account.account_number,
+            )
+            return False
+        if self.find_account(account.account_number) is not None:
+            logger.error(
+                "Customer %d: account %s already exists", self._user_id, account.account_number
+            )
+            return False
+        self.__accounts.append(account)
+        logger.info(
+            "Customer %d: added %s account %s",
+            self._user_id,
+            account.account_type,
+            account.account_number,
+        )
+        return True
