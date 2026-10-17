@@ -258,3 +258,28 @@ def test_create_savings_minimum_in_other_currency():
 def test_create_savings_rejects_unknown_currency():
     with pytest.raises(ValueError):
         BankAccount.create_savings("1234567890", "BTC", 1000.0)
+
+
+@pytest.mark.parametrize("account_number", ["1234567890", "0000000000"])
+def test_is_valid_account_number_accepts_ten_digits(account_number):
+    assert BankAccount.is_valid_account_number(account_number) is True
+
+
+@pytest.mark.parametrize(
+    "account_number",
+    [
+        "123456789",
+        "12345678901",
+        "12345abcde",
+        "",
+        " 1234567890",
+        "1234567890\n",
+        "١٢٣٤٥٦٧٨٩٠",
+        1234567890,
+        None,
+        12.5,
+        ["1234567890"],
+    ],
+)
+def test_is_valid_account_number_rejects_invalid_values(account_number):
+    assert BankAccount.is_valid_account_number(account_number) is False

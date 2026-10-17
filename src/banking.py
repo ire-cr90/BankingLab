@@ -1,6 +1,7 @@
 """Secure Banking System: accounts, customers and an interactive menu."""
 
 import logging
+import re
 
 LOG_FORMAT = "%(asctime)s | %(levelname)s | %(message)s"
 LOG_FILE = "banking.log"
@@ -221,3 +222,11 @@ class BankAccount:
             account.currency,
         )
         return account
+
+    @staticmethod
+    def is_valid_account_number(account_number: object) -> bool:
+        """Return True only for a string made of exactly 10 digits."""
+        return (
+            isinstance(account_number, str)
+            and re.fullmatch(r"\d{10}", account_number, re.ASCII) is not None
+        )
