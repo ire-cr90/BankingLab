@@ -128,6 +128,12 @@ class BankAccount:
         code = cls._validate_currency(currency)
         return round(cls.SAVINGS_MINIMUM_USD / cls.RATES_TO_USD[code], 2)
 
+    @classmethod
+    def to_usd(cls, amount: float, currency: str) -> float:
+        """Return the amount converted from the given currency into USD."""
+        code = cls._validate_currency(currency)
+        return amount * cls.RATES_TO_USD[code]
+
     def withdraw(self, amount: float) -> float:
         """Subtract an amount from the balance and return the new balance.
 
@@ -351,3 +357,10 @@ class Customer:
             account.account_number,
         )
         return True
+
+    def get_total_balance(self) -> float:
+        """Return the sum of all account balances converted to USD, rounded to cents."""
+        total = 0.0
+        for account in self.__accounts:
+            total += BankAccount.to_usd(account.balance, account.currency)
+        return round(total, 2)

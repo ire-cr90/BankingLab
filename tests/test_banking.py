@@ -441,3 +441,33 @@ def test_find_account(customer, checking, savings):
     customer.add_account(savings)
     assert customer.find_account("0987654321") is savings
     assert customer.find_account("5555555555") is None
+
+
+@pytest.mark.parametrize(
+    ("amount", "currency", "expected"),
+    [(100.0, "USD", 100.0), (100.0, "EUR", 108.0), (100000.0, "crc", 190.0)],
+)
+def test_to_usd_uses_rate_table(amount, currency, expected):
+    assert BankAccount.to_usd(amount, currency) == pytest.approx(expected)
+
+
+def test_to_usd_rejects_unknown_currency():
+    with pytest.raises(ValueError):
+        BankAccount.to_usd(1.0, "XYZ")
+
+
+def test_total_balance_without_accounts_is_zero(customer):
+    assert customer.get_total_balance() == 0.0
+
+
+def test_total_balance_sums_usd_accounts(customer, checking, savings):
+    customer.add_account(checking)
+    customer.add_account(savings)
+    assert customer.get_total_balance() == 800.0
+
+
+def test_total_balance_converts_other_currencies_to_usd(customer, checking):
+    customer.add_account(checking)
+    customer.add_account(BankAccount("2222222222", "EUR", balance=100.0))
+    customer.add_account(BankAccount("3333333333", "CRC", balance=100000.0))
+    assert customer.get_total_balance() == pytest.approx(500.0 + 108.0 + 190.0)
