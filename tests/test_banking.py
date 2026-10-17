@@ -1,6 +1,8 @@
 import logging
 
-from src.banking import LOG_FORMAT, configure_logger, logger
+import pytest
+
+from src.banking import LOG_FORMAT, InsufficientFundsError, configure_logger, logger
 
 
 def test_logger_has_console_and_file_handlers():
@@ -28,3 +30,16 @@ def test_logger_writes_to_log_file(tmp_path):
         handler.close()
     content = log_file.read_text(encoding="utf-8")
     assert "| INFO | hello log" in content
+
+
+def test_insufficient_funds_error_carries_message_and_amount():
+    error = InsufficientFundsError("Not enough funds", 250.0)
+    assert error.message == "Not enough funds"
+    assert error.amount == 250.0
+    assert str(error) == "Not enough funds"
+
+
+def test_insufficient_funds_error_is_an_exception():
+    with pytest.raises(InsufficientFundsError) as exc_info:
+        raise InsufficientFundsError("Not enough funds", 10.0)
+    assert exc_info.value.amount == 10.0

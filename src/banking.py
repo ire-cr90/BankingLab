@@ -26,3 +26,13 @@ def configure_logger(name: str = "banking", log_file: str = LOG_FILE) -> logging
 
 
 logger = configure_logger()
+
+
+class InsufficientFundsError(Exception):
+    """Raised when an account does not have enough funds for an operation."""
+
+    def __init__(self, message: str, amount: float) -> None:
+        """Store the error message and the amount that could not be processed."""
+        super().__init__(message)
+        self.message = message
+        self.amount = amount
