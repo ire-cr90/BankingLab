@@ -647,3 +647,83 @@ def test_menu_handles_interruptions(capsys, interruption):
     with patch("builtins.input", side_effect=interruption):
         menu()
     assert "Session interrupted. Goodbye!" in capsys.readouterr().out
+
+
+def add_customer_answers(name: str = "Ana Mora") -> list[str]:
+    return ["1", name, years_ago(30).isoformat()]
+
+
+def test_menu_adds_customer(capsys):
+    output = run_menu([*add_customer_answers(), "0"], capsys)
+    assert "Customer created with id 1." in output
+    assert len(banking.customers) == 1
+    assert banking.customers[0].name == "Ana Mora"
+
+
+def test_menu_rejects_underage_customer(capsys):
+    output = run_menu(["1", "Kid", years_ago(10).isoformat(), "0"], capsys)
+    assert "Error: Customer must be at least 18 years old." in output
+    assert banking.customers == []
+
+
+def test_menu_rejects_empty_customer_name(capsys):
+    output = run_menu(["1", "", "0"], capsys)
+    assert "Error: This field cannot be empty." in output
+
+
+def test_menu_adds_checking_account(capsys):
+    answers = [*add_customer_answers(), "2", "1", "checking", "1234567890", "", "250", "0"]
+    output = run_menu(answers, capsys)
+    assert "Account added: Checking account 1234567890: 250.00 USD" in output
+    assert banking.customers[0].find_account("1234567890").balance == 250.0
+
+
+def test_menu_adds_savings_account_in_other_currency(capsys):
+    answers = [*add_customer_answers(), "2", "1", "SAVINGS", "1234567890", "eur", "500", "0"]
+    output = run_menu(answers, capsys)
+    assert "Account added: Savings account 1234567890: 500.00 EUR" in output
+
+
+def test_menu_rejects_savings_below_minimum(capsys):
+    answers = [*add_customer_answers(), "2", "1", "savings", "1234567890", "USD", "50", "0"]
+    output = run_menu(answers, capsys)
+    assert "Error: A savings account needs at least 100.00 USD to open." in output
+    assert banking.customers[0].accounts == []
+
+
+def test_menu_reports_invalid_account_number(capsys):
+    answers = [*add_customer_answers(), "2", "1", "checking", "12345", "", "", "0"]
+    output = run_menu(answers, capsys)
+    assert "The account could not be added." in output
+
+
+def test_menu_rejects_account_number_used_by_another_customer(capsys):
+    answers = [
+        *add_customer_answers(),
+        *add_customer_answers("Luis"),
+        "2",
+        "1",
+        "checking",
+        "1234567890",
+        "",
+        "",
+        "2",
+        "2",
+        "checking",
+        "1234567890",
+        "0",
+    ]
+    output = run_menu(answers, capsys)
+    assert "Error: Account number 1234567890 is already in use." in output
+    assert banking.customers[1].accounts == []
+
+
+def test_menu_rejects_unknown_customer_and_bad_ids(capsys):
+    output = run_menu(["2", "7", "2", "seven", "0"], capsys)
+    assert "Error: No customer found with id 7." in output
+    assert "Error: 'seven' is not a whole number." in output
+
+
+def test_menu_rejects_invalid_account_type(capsys):
+    output = run_menu([*add_customer_answers(), "2", "1", "investment", "0"], capsys)
+    assert "Error: Account type must be 'checking' or 'savings'." in output

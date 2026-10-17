@@ -480,8 +480,70 @@ def read_float(prompt: str, default: float | None = None) -> float:
     return number
 
 
+def find_customer(user_id: int) -> Customer:
+    """Return the registered customer with the given id or raise ValueError."""
+    for customer in customers:
+        if customer.user_id == user_id:
+            return customer
+    raise ValueError(f"No customer found with id {user_id}.")
+
+
+def select_customer() -> Customer:
+    """Ask for a customer id and return the matching customer."""
+    return find_customer(read_int("Customer id: "))
+
+
+def select_account(customer: Customer, prompt: str = "Account number: ") -> BankAccount:
+    """Ask for an account number and return the matching account of the customer."""
+    account_number = read_text(prompt)
+    account = customer.find_account(account_number)
+    if account is None:
+        raise ValueError(f"Customer {customer.user_id} has no account {account_number}.")
+    return account
+
+
+def is_account_number_in_use(account_number: str) -> bool:
+    """Return True if any registered customer already owns the account number."""
+    return any(customer.find_account(account_number) for customer in customers)
+
+
+def add_customer_option() -> None:
+    """Register a new customer."""
+    name = read_text("Full name: ")
+    birth_date = read_text("Birth date (YYYY-MM-DD): ")
+    customer = Customer(name, birth_date)
+    customers.append(customer)
+    print(f"Customer created with id {customer.user_id}.")
+
+
+def add_account_option() -> None:
+    """Open a checking or savings account for an existing customer."""
+    customer = select_customer()
+    account_type = read_text("Account type (checking/savings): ").lower()
+    if account_type not in BankAccount.ACCOUNT_TYPES:
+        raise ValueError("Account type must be 'checking' or 'savings'.")
+    account_number = read_text("Account number (10 digits): ")
+    if is_account_number_in_use(account_number):
+        raise ValueError(f"Account number {account_number} is already in use.")
+    currency = read_text(f"Currency ({'/'.join(BankAccount.RATES_TO_USD)}) [USD]: ", "USD")
+    if account_type == "savings":
+        minimum = BankAccount.minimum_savings_balance(currency)
+        balance = read_float(f"Initial balance (minimum {minimum:,.2f} {currency.upper()}): ")
+        account = BankAccount.create_savings(account_number, currency, balance)
+    else:
+        balance = read_float("Initial balance [0]: ", 0.0)
+        account = BankAccount(account_number, currency, account_type, balance)
+    if customer.add_account(account):
+        print(f"Account added: {account}")
+    else:
+        print("The account could not be added. The number must have exactly 10 digits.")
+
+
 MenuAction = Callable[[], None]
-MENU_OPTIONS: dict[str, tuple[str, MenuAction]] = {}
+MENU_OPTIONS: dict[str, tuple[str, MenuAction]] = {
+    "1": ("Add a new customer", add_customer_option),
+    "2": ("Add a new account to a customer", add_account_option),
+}
 
 
 def print_menu() -> None:
