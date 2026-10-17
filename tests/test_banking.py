@@ -140,3 +140,74 @@ def test_deposit_rejects_negative_amount(checking, caplog):
     assert checking.balance == 500.0
     assert caplog.records[-1].levelname == "ERROR"
     assert "Rejected negative deposit" in caplog.text
+
+
+@pytest.fixture
+def savings() -> BankAccount:
+    return BankAccount("0987654321", "USD", "savings", 300.0)
+
+
+def test_withdraw_decreases_balance(checking):
+    assert checking.withdraw(200) == 300.0
+    assert checking.balance == 300.0
+
+
+def test_withdraw_logs_new_balance(checking, caplog):
+    with caplog.at_level(logging.INFO, logger="banking"):
+        checking.withdraw(50)
+    assert caplog.records[-1].levelname == "INFO"
+    assert "New balance: 450.00 USD" in caplog.text
+
+
+def test_withdraw_entire_checking_balance(checking):
+    assert checking.withdraw(500) == 0.0
+
+
+def test_withdraw_rejects_negative_amount(checking, caplog):
+    with pytest.raises(ValueError):
+        checking.withdraw(-1)
+    assert checking.balance == 500.0
+    assert "Rejected negative withdrawal" in caplog.text
+
+
+def test_withdraw_more_than_balance_raises_insufficient_funds(checking, caplog):
+    with pytest.raises(InsufficientFundsError) as exc_info:
+        checking.withdraw(500.01)
+    assert exc_info.value.amount == 500.01
+    assert checking.balance == 500.0
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "Insufficient funds" in caplog.text
+
+
+def test_savings_withdraw_down_to_minimum_is_allowed(savings):
+    assert savings.withdraw(200) == 100.0
+
+
+def test_savings_withdraw_below_minimum_is_rejected(savings, caplog):
+    with pytest.raises(InsufficientFundsError) as exc_info:
+        savings.withdraw(200.01)
+    assert exc_info.value.amount == 200.01
+    assert savings.balance == 300.0
+    assert "below the minimum of 100.00 USD" in caplog.text
+
+
+def test_savings_minimum_in_other_currency_is_converted():
+    account = BankAccount("1111111111", "CRC", "savings", 60000.0)
+    minimum = BankAccount.minimum_savings_balance("CRC")
+    assert minimum == pytest.approx(52631.58)
+    with pytest.raises(InsufficientFundsError):
+        account.withdraw(60000.0 - minimum + 1)
+    assert account.withdraw(60000.0 - minimum) == pytest.approx(minimum)
+
+
+@pytest.mark.parametrize(
+    ("currency", "expected"),
+    [("USD", 100.0), ("EUR", 92.59), ("CRC", 52631.58)],
+)
+def test_minimum_savings_balance_per_currency(currency, expected):
+    assert BankAccount.minimum_savings_balance(currency) == pytest.approx(expected)
+
+
+def test_minimum_savings_balance_rejects_unknown_currency():
+    with pytest.raises(ValueError):
+        BankAccount.minimum_savings_balance("GBP")

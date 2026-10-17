@@ -119,3 +119,47 @@ class BankAccount:
             self.currency,
         )
         return self.balance
+
+    @classmethod
+    def minimum_savings_balance(cls, currency: str = "USD") -> float:
+        """Return the savings minimum of 100 USD expressed in the given currency."""
+        code = cls._validate_currency(currency)
+        return round(cls.SAVINGS_MINIMUM_USD / cls.RATES_TO_USD[code], 2)
+
+    def withdraw(self, amount: float) -> float:
+        """Subtract an amount from the balance and return the new balance.
+
+        Savings accounts must keep at least the equivalent of 100 USD.
+        """
+        if amount < 0:
+            logger.error(
+                "Rejected negative withdrawal of %.2f from account %s", amount, self.account_number
+            )
+            raise ValueError("Withdrawal amount cannot be negative.")
+        if amount > self.balance:
+            message = (
+                f"Insufficient funds in account {self.account_number}: "
+                f"requested {amount:.2f} {self.currency}, available {self.balance:.2f} "
+                f"{self.currency}."
+            )
+            logger.error(message)
+            raise InsufficientFundsError(message, amount)
+        if self.account_type == "savings":
+            minimum = self.minimum_savings_balance(self.currency)
+            if round(self.balance - amount, 2) < minimum:
+                message = (
+                    f"Withdrawal of {amount:.2f} {self.currency} would leave savings account "
+                    f"{self.account_number} below the minimum of {minimum:.2f} {self.currency}."
+                )
+                logger.error(message)
+                raise InsufficientFundsError(message, amount)
+        self.balance = self.balance - amount
+        logger.info(
+            "Withdrew %.2f %s from account %s. New balance: %.2f %s",
+            amount,
+            self.currency,
+            self.account_number,
+            self.balance,
+            self.currency,
+        )
+        return self.balance
