@@ -572,6 +572,27 @@ def convert_currency_option() -> None:
     account.convert_currency(target_currency, exchange_rate)
 
 
+def transfer_option() -> None:
+    """Transfer money between two accounts of the same customer."""
+    customer = select_customer()
+    source_account_number = read_text("Source account number: ")
+    target_account_number = read_text("Target account number: ")
+    amount = read_float("Amount to transfer: ")
+    if customer.transfer(amount, source_account_number, target_account_number):
+        print("Transfer completed.")
+        print(customer)
+    else:
+        print(
+            "The transfer could not be completed. Check that both accounts belong to the "
+            "customer, use the same currency and have enough funds."
+        )
+
+
+def show_customer_option() -> None:
+    """Show a customer with its accounts and total balance."""
+    print(select_customer())
+
+
 MenuAction = Callable[[], None]
 MENU_OPTIONS: dict[str, tuple[str, MenuAction]] = {
     "1": ("Add a new customer", add_customer_option),
@@ -579,6 +600,8 @@ MENU_OPTIONS: dict[str, tuple[str, MenuAction]] = {
     "3": ("Deposit", deposit_option),
     "4": ("Withdraw", withdraw_option),
     "5": ("Convert currency (show balance in another currency)", convert_currency_option),
+    "6": ("Transfer between two accounts of the same customer", transfer_option),
+    "7": ("Show a customer with its accounts and total balance", show_customer_option),
 }
 
 

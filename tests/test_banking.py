@@ -805,3 +805,40 @@ def test_menu_convert_currency_rejects_non_positive_rate(capsys):
         [*customer_with_checking_answers(), "5", "1", "1234567890", "EUR", "0", "0"], capsys
     )
     assert "Error: Exchange rate must be greater than zero." in output
+
+
+def customer_with_two_accounts_answers() -> list[str]:
+    return [
+        *customer_with_checking_answers(),
+        *["2", "1", "savings", "0987654321", "USD", "300"],
+    ]
+
+
+def test_menu_transfer(capsys):
+    answers = [*customer_with_two_accounts_answers(), "6", "1", "1234567890", "0987654321", "200"]
+    output = run_menu([*answers, "0"], capsys)
+    assert "Transfer completed." in output
+    customer = banking.customers[0]
+    assert customer.find_account("1234567890").balance == 300.0
+    assert customer.find_account("0987654321").balance == 500.0
+
+
+def test_menu_transfer_below_savings_minimum_fails(capsys):
+    answers = [*customer_with_two_accounts_answers(), "6", "1", "0987654321", "1234567890", "250"]
+    output = run_menu([*answers, "0"], capsys)
+    assert "The transfer could not be completed." in output
+    assert banking.customers[0].find_account("0987654321").balance == 300.0
+
+
+def test_menu_show_customer(capsys):
+    output = run_menu([*customer_with_two_accounts_answers(), "7", "1", "0"], capsys)
+    assert "Customer 1: Ana Mora" in output
+    assert "  - Checking account 1234567890: 500.00 USD" in output
+    assert "  - Savings account 0987654321: 300.00 USD" in output
+    assert "Total balance: 800.00 USD" in output
+
+
+def test_menu_lists_all_options(capsys):
+    output = run_menu(["0"], capsys)
+    for number in range(8):
+        assert f"{number}. " in output
