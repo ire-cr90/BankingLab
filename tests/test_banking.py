@@ -1,10 +1,12 @@
 import logging
+from datetime import date, datetime, timedelta
 
 import pytest
 
 from src.banking import (
     LOG_FORMAT,
     BankAccount,
+    Customer,
     InsufficientFundsError,
     configure_logger,
     logger,
@@ -295,3 +297,102 @@ def test_account_repr(checking):
 def test_account_str(savings):
     savings.deposit(1000)
     assert str(savings) == "Savings account 0987654321: 1,300.00 USD"
+
+
+def years_ago(years: int, today: date | None = None) -> date:
+    today = today or date.today()
+    try:
+        return today.replace(year=today.year - years)
+    except ValueError:
+        return today.replace(year=today.year - years, day=28)
+
+
+@pytest.fixture(autouse=True)
+def reset_user_count():
+    Customer.user_count = 0
+    yield
+    Customer.user_count = 0
+
+
+@pytest.fixture
+def adult_birth_date() -> date:
+    return years_ago(30)
+
+
+def test_customer_stores_name_birth_date_and_id(adult_birth_date):
+    customer = Customer("  Ana Mora  ", adult_birth_date)
+    assert customer.name == "Ana Mora"
+    assert customer.birth_date == adult_birth_date
+    assert customer.user_id == 1
+    assert customer._user_id == 1
+    assert customer.accounts == []
+
+
+def test_customer_accepts_iso_string_birth_date(adult_birth_date):
+    customer = Customer("Ana", adult_birth_date.isoformat())
+    assert customer.birth_date == adult_birth_date
+
+
+def test_customer_accepts_datetime_birth_date(adult_birth_date):
+    moment = datetime.combine(adult_birth_date, datetime.min.time())
+    assert Customer("Ana", moment).birth_date == adult_birth_date
+
+
+@pytest.mark.parametrize("birth_date", ["16/10/1990", "1990-13-01", "", "not a date", 19900101])
+def test_customer_rejects_invalid_birth_date(birth_date, caplog):
+    with pytest.raises(ValueError):
+        Customer("Ana", birth_date)
+    assert caplog.records[-1].levelname == "ERROR"
+
+
+@pytest.mark.parametrize("name", ["", "   ", None])
+def test_customer_rejects_empty_name(name, adult_birth_date, caplog):
+    with pytest.raises(ValueError):
+        Customer(name, adult_birth_date)
+    assert "empty name" in caplog.text
+
+
+def test_customer_turning_18_today_is_accepted():
+    assert Customer("Ana", years_ago(18)).user_id == 1
+
+
+def test_customer_turning_18_tomorrow_is_rejected(caplog):
+    with pytest.raises(ValueError):
+        Customer("Ana", years_ago(18) + timedelta(days=1))
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "is under 18" in caplog.text
+
+
+def test_customer_with_future_birth_date_is_rejected():
+    with pytest.raises(ValueError):
+        Customer("Ana", date.today() + timedelta(days=1))
+
+
+def test_customer_ids_are_consecutive(adult_birth_date):
+    first = Customer("Ana", adult_birth_date)
+    second = Customer("Luis", adult_birth_date)
+    third = Customer("Sofia", adult_birth_date)
+    assert [first.user_id, second.user_id, third.user_id] == [1, 2, 3]
+    assert Customer.user_count == 3
+
+
+def test_rejected_customer_does_not_consume_an_id(adult_birth_date):
+    Customer("Ana", adult_birth_date)
+    with pytest.raises(ValueError):
+        Customer("Kid", years_ago(10))
+    assert Customer("Luis", adult_birth_date).user_id == 2
+
+
+@pytest.mark.parametrize(
+    ("birth_date", "today", "expected"),
+    [
+        (date(2000, 5, 20), date(2026, 5, 19), 25),
+        (date(2000, 5, 20), date(2026, 5, 20), 26),
+        (date(2000, 5, 20), date(2026, 4, 30), 25),
+        (date(2000, 5, 20), date(2026, 6, 1), 26),
+        (date(2004, 2, 29), date(2022, 2, 28), 17),
+        (date(2004, 2, 29), date(2022, 3, 1), 18),
+    ],
+)
+def test_calculate_age_considers_month_and_day(birth_date, today, expected):
+    assert Customer.calculate_age(birth_date, today) == expected

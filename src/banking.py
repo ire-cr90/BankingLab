@@ -2,6 +2,7 @@
 
 import logging
 import re
+from datetime import date, datetime
 
 LOG_FORMAT = "%(asctime)s | %(levelname)s | %(message)s"
 LOG_FILE = "banking.log"
@@ -244,3 +245,76 @@ class BankAccount:
             f"{self.account_type.capitalize()} account {self.account_number}: "
             f"{self.balance:,.2f} {self.currency}"
         )
+
+
+class Customer:
+    """A bank customer who is at least 18 years old and owns bank accounts."""
+
+    MINIMUM_AGE: int = 18
+    user_count: int = 0
+
+    def __init__(self, name: str, birth_date: date | str) -> None:
+        """Create a customer, validating the name and that they are an adult."""
+        if not isinstance(name, str) or not name.strip():
+            logger.error("Rejected customer with an empty name")
+            raise ValueError("Customer name cannot be empty.")
+        parsed_birth_date = self._parse_birth_date(birth_date)
+        age = self.calculate_age(parsed_birth_date)
+        if age < self.MINIMUM_AGE:
+            logger.error(
+                "Rejected customer '%s': age %d is under %d", name.strip(), age, self.MINIMUM_AGE
+            )
+            raise ValueError(f"Customer must be at least {self.MINIMUM_AGE} years old.")
+        self._name = name.strip()
+        self._birth_date = parsed_birth_date
+        self._user_id = self._next_user_id()
+        self.__accounts: list[BankAccount] = []
+        logger.info("Created customer %d: %s", self._user_id, self._name)
+
+    @classmethod
+    def _next_user_id(cls) -> int:
+        """Increase the customer counter and return the new consecutive id."""
+        cls.user_count += 1
+        return cls.user_count
+
+    @staticmethod
+    def _parse_birth_date(birth_date: date | str) -> date:
+        """Return the birth date as a date, accepting a date or a 'YYYY-MM-DD' string."""
+        if isinstance(birth_date, datetime):
+            return birth_date.date()
+        if isinstance(birth_date, date):
+            return birth_date
+        if isinstance(birth_date, str):
+            try:
+                return date.fromisoformat(birth_date.strip())
+            except ValueError:
+                pass
+        logger.error("Invalid birth date '%s', expected YYYY-MM-DD", birth_date)
+        raise ValueError("Birth date must be a date or a 'YYYY-MM-DD' string.")
+
+    @staticmethod
+    def calculate_age(birth_date: date, today: date | None = None) -> int:
+        """Return the age in full years, taking month and day into account."""
+        today = today or date.today()
+        had_birthday = (today.month, today.day) >= (birth_date.month, birth_date.day)
+        return today.year - birth_date.year - (0 if had_birthday else 1)
+
+    @property
+    def name(self) -> str:
+        """Return the customer name."""
+        return self._name
+
+    @property
+    def birth_date(self) -> date:
+        """Return the customer birth date."""
+        return self._birth_date
+
+    @property
+    def user_id(self) -> int:
+        """Return the consecutive customer id."""
+        return self._user_id
+
+    @property
+    def accounts(self) -> list[BankAccount]:
+        """Return a copy of the customer accounts list."""
+        return list(self.__accounts)
