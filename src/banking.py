@@ -1,7 +1,9 @@
 """Secure Banking System: accounts, customers and an interactive menu."""
 
 import logging
+import math
 import re
+from collections.abc import Callable
 from datetime import date, datetime
 
 LOG_FORMAT = "%(asctime)s | %(levelname)s | %(message)s"
@@ -442,3 +444,80 @@ class Customer:
             lines.append("  - No accounts")
         lines.append(f"Total balance: {self.get_total_balance():,.2f} USD")
         return "\n".join(lines)
+
+
+customers: list[Customer] = []
+
+
+def read_text(prompt: str, default: str | None = None) -> str:
+    """Ask for a text value, using the default when the answer is empty."""
+    value = input(prompt).strip()
+    if value:
+        return value
+    if default is not None:
+        return default
+    raise ValueError("This field cannot be empty.")
+
+
+def read_int(prompt: str) -> int:
+    """Ask for a whole number."""
+    value = read_text(prompt)
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(f"'{value}' is not a whole number.") from None
+
+
+def read_float(prompt: str, default: float | None = None) -> float:
+    """Ask for a finite number, using the default when the answer is empty."""
+    value = read_text(prompt, None if default is None else str(default))
+    try:
+        number = float(value)
+    except ValueError:
+        raise ValueError(f"'{value}' is not a valid number.") from None
+    if not math.isfinite(number):
+        raise ValueError("Please enter a finite number.")
+    return number
+
+
+MenuAction = Callable[[], None]
+MENU_OPTIONS: dict[str, tuple[str, MenuAction]] = {}
+
+
+def print_menu() -> None:
+    """Print the available menu options."""
+    print("\n===== Secure Banking System =====")
+    for key, (label, _) in MENU_OPTIONS.items():
+        print(f"{key}. {label}")
+    print("0. Exit")
+
+
+def menu() -> None:
+    """Run the interactive banking menu until the user chooses to exit."""
+    try:
+        while True:
+            print_menu()
+            choice = input("Choose an option: ").strip()
+            if choice == "0":
+                print("Goodbye!")
+                return
+            if not choice:
+                print("Please enter an option.")
+                continue
+            if choice not in MENU_OPTIONS:
+                valid = ", ".join([*MENU_OPTIONS, "0"])
+                print(f"Invalid option '{choice}'. Choose one of: {valid}.")
+                continue
+            _, action = MENU_OPTIONS[choice]
+            try:
+                action()
+            except InsufficientFundsError as error:
+                print(f"Insufficient funds: {error.message}")
+            except ValueError as error:
+                print(f"Error: {error}")
+    except (KeyboardInterrupt, EOFError):
+        print("\nSession interrupted. Goodbye!")
+
+
+if __name__ == "__main__":
+    menu()

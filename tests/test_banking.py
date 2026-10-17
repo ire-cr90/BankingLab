@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+import src.banking as banking
 from src.banking import (
     LOG_FORMAT,
     BankAccount,
@@ -11,6 +12,10 @@ from src.banking import (
     InsufficientFundsError,
     configure_logger,
     logger,
+    menu,
+    read_float,
+    read_int,
+    read_text,
 )
 
 
@@ -569,3 +574,76 @@ def test_customer_str_with_accounts(checking):
         "  - Savings account 2222222222: 1,000.00 EUR\n"
         "Total balance: 1,580.00 USD"
     )
+
+
+@pytest.fixture(autouse=True)
+def reset_customers():
+    banking.customers.clear()
+    yield
+    banking.customers.clear()
+
+
+def run_menu(answers: list[str], capsys) -> str:
+    with patch("builtins.input", side_effect=answers):
+        menu()
+    return capsys.readouterr().out
+
+
+def test_read_text_strips_value():
+    with patch("builtins.input", return_value="  hello  "):
+        assert read_text("> ") == "hello"
+
+
+def test_read_text_rejects_empty_value():
+    with patch("builtins.input", return_value="   "), pytest.raises(ValueError):
+        read_text("> ")
+
+
+def test_read_text_uses_default_for_empty_value():
+    with patch("builtins.input", return_value=""):
+        assert read_text("> ", "USD") == "USD"
+
+
+def test_read_int_parses_numbers():
+    with patch("builtins.input", return_value="42"):
+        assert read_int("> ") == 42
+
+
+@pytest.mark.parametrize("value", ["abc", "4.5", ""])
+def test_read_int_rejects_non_integers(value):
+    with patch("builtins.input", return_value=value), pytest.raises(ValueError):
+        read_int("> ")
+
+
+def test_read_float_parses_numbers():
+    with patch("builtins.input", return_value="12.5"):
+        assert read_float("> ") == 12.5
+
+
+def test_read_float_uses_default_for_empty_value():
+    with patch("builtins.input", return_value=""):
+        assert read_float("> ", 0.0) == 0.0
+
+
+@pytest.mark.parametrize("value", ["ten", "", "nan", "inf"])
+def test_read_float_rejects_invalid_numbers(value):
+    with patch("builtins.input", return_value=value), pytest.raises(ValueError):
+        read_float("> ")
+
+
+def test_menu_exits_with_zero(capsys):
+    assert "Goodbye!" in run_menu(["0"], capsys)
+
+
+def test_menu_handles_empty_and_invalid_options(capsys):
+    output = run_menu(["", "abc", "99", "0"], capsys)
+    assert "Please enter an option." in output
+    assert "Invalid option 'abc'" in output
+    assert "Invalid option '99'" in output
+
+
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt, EOFError])
+def test_menu_handles_interruptions(capsys, interruption):
+    with patch("builtins.input", side_effect=interruption):
+        menu()
+    assert "Session interrupted. Goodbye!" in capsys.readouterr().out
