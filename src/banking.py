@@ -425,3 +425,20 @@ class Customer:
             target_account_number,
         )
         return True
+
+    def __repr__(self) -> str:
+        """Return an unambiguous representation of the customer."""
+        return (
+            f"Customer(user_id={self._user_id}, name={self._name!r}, "
+            f"birth_date={self._birth_date.isoformat()!r}, accounts={len(self.__accounts)})"
+        )
+
+    def __str__(self) -> str:
+        """Return the customer details, accounts and total balance in USD."""
+        lines = [f"Customer {self._user_id}: {self._name} (born {self._birth_date.isoformat()})"]
+        if self.__accounts:
+            lines.extend(f"  - {account}" for account in self.__accounts)
+        else:
+            lines.append("  - No accounts")
+        lines.append(f"Total balance: {self.get_total_balance():,.2f} USD")
+        return "\n".join(lines)

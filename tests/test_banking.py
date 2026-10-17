@@ -543,3 +543,29 @@ def test_transfer_restores_source_when_deposit_fails(customer_with_accounts, che
         assert customer_with_accounts.transfer(100, "1234567890", "0987654321") is False
     assert checking.balance == 500.0
     assert savings.balance == 300.0
+
+
+def test_customer_repr():
+    customer = Customer("Ana Mora", date(1990, 1, 15))
+    assert repr(customer) == (
+        "Customer(user_id=1, name='Ana Mora', birth_date='1990-01-15', accounts=0)"
+    )
+
+
+def test_customer_str_without_accounts():
+    customer = Customer("Ana Mora", date(1990, 1, 15))
+    assert str(customer) == (
+        "Customer 1: Ana Mora (born 1990-01-15)\n  - No accounts\nTotal balance: 0.00 USD"
+    )
+
+
+def test_customer_str_with_accounts(checking):
+    customer = Customer("Ana Mora", date(1990, 1, 15))
+    customer.add_account(checking)
+    customer.add_account(BankAccount("2222222222", "EUR", "savings", 1000.0))
+    assert str(customer) == (
+        "Customer 1: Ana Mora (born 1990-01-15)\n"
+        "  - Checking account 1234567890: 500.00 USD\n"
+        "  - Savings account 2222222222: 1,000.00 EUR\n"
+        "Total balance: 1,580.00 USD"
+    )
