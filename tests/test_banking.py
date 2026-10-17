@@ -227,3 +227,34 @@ def test_convert_currency_rejects_non_positive_rate(checking, caplog, rate):
         checking.convert_currency("EUR", rate)
     assert caplog.records[-1].levelname == "ERROR"
     assert "Rejected non-positive exchange rate" in caplog.text
+
+
+def test_create_savings_builds_savings_account():
+    account = BankAccount.create_savings("1234567890", "USD", 150.0)
+    assert isinstance(account, BankAccount)
+    assert account.account_type == "savings"
+    assert account.balance == 150.0
+
+
+def test_create_savings_defaults_to_minimum_balance():
+    assert BankAccount.create_savings("1234567890").balance == 100.0
+    assert BankAccount.create_savings("1234567890", "EUR").balance == pytest.approx(92.59)
+
+
+def test_create_savings_rejects_balance_below_minimum(caplog):
+    with pytest.raises(ValueError):
+        BankAccount.create_savings("1234567890", "USD", 99.99)
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "below the minimum of 100.00 USD" in caplog.text
+
+
+def test_create_savings_minimum_in_other_currency():
+    with pytest.raises(ValueError):
+        BankAccount.create_savings("1234567890", "CRC", 50000.0)
+    account = BankAccount.create_savings("1234567890", "crc", 52631.58)
+    assert account.currency == "CRC"
+
+
+def test_create_savings_rejects_unknown_currency():
+    with pytest.raises(ValueError):
+        BankAccount.create_savings("1234567890", "BTC", 1000.0)

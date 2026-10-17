@@ -190,3 +190,34 @@ class BankAccount:
             exchange_rate,
         )
         return converted
+
+    @classmethod
+    def create_savings(
+        cls, account_number: str, currency: str = "USD", balance: float | None = None
+    ) -> "BankAccount":
+        """Create a savings account holding at least the equivalent of 100 USD.
+
+        When no balance is given, the account opens with exactly the minimum.
+        """
+        minimum = cls.minimum_savings_balance(currency)
+        if balance is None:
+            balance = minimum
+        if balance < minimum:
+            logger.error(
+                "Rejected savings account %s: initial balance %.2f is below the minimum of %.2f %s",
+                account_number,
+                balance,
+                minimum,
+                currency.upper(),
+            )
+            raise ValueError(
+                f"A savings account needs at least {minimum:.2f} {currency.upper()} to open."
+            )
+        account = cls(account_number, currency, "savings", balance)
+        logger.info(
+            "Created savings account %s with %.2f %s",
+            account.account_number,
+            account.balance,
+            account.currency,
+        )
+        return account
