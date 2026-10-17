@@ -2,7 +2,13 @@ import logging
 
 import pytest
 
-from src.banking import LOG_FORMAT, InsufficientFundsError, configure_logger, logger
+from src.banking import (
+    LOG_FORMAT,
+    BankAccount,
+    InsufficientFundsError,
+    configure_logger,
+    logger,
+)
 
 
 def test_logger_has_console_and_file_handlers():
@@ -43,3 +49,70 @@ def test_insufficient_funds_error_is_an_exception():
     with pytest.raises(InsufficientFundsError) as exc_info:
         raise InsufficientFundsError("Not enough funds", 10.0)
     assert exc_info.value.amount == 10.0
+
+
+@pytest.fixture
+def checking() -> BankAccount:
+    return BankAccount("1234567890", "USD", "checking", 500.0)
+
+
+def test_account_stores_public_protected_and_private_attributes(checking):
+    assert checking.account_number == "1234567890"
+    assert checking.currency == "USD"
+    assert checking._account_type == "checking"
+    assert checking._BankAccount__balance == 500.0
+    assert not hasattr(checking, "__balance")
+
+
+def test_account_getters(checking):
+    assert checking.get_account_number() == "1234567890"
+    assert checking.get_currency() == "USD"
+    assert checking.account_type == "checking"
+    assert checking.balance == 500.0
+
+
+def test_account_defaults():
+    account = BankAccount("1234567890")
+    assert account.currency == "USD"
+    assert account.account_type == "checking"
+    assert account.balance == 0.0
+
+
+def test_account_type_is_read_only(checking):
+    with pytest.raises(AttributeError):
+        checking.account_type = "savings"
+
+
+def test_currency_is_normalized_to_upper_case():
+    assert BankAccount("1234567890", "crc").currency == "CRC"
+
+
+def test_unknown_currency_is_rejected(caplog):
+    with pytest.raises(ValueError):
+        BankAccount("1234567890", "JPY")
+    assert "Unsupported currency 'JPY'" in caplog.text
+
+
+def test_invalid_account_type_is_rejected(caplog):
+    with pytest.raises(ValueError):
+        BankAccount("1234567890", account_type="investment")
+    assert "ERROR" in caplog.text
+    assert "Invalid account type 'investment'" in caplog.text
+
+
+def test_balance_setter_updates_balance(checking):
+    checking.balance = 42.5
+    assert checking.balance == 42.5
+
+
+def test_balance_setter_rejects_negative_values(checking, caplog):
+    with pytest.raises(ValueError):
+        checking.balance = -1
+    assert checking.balance == 500.0
+    assert "Rejected negative balance" in caplog.text
+    assert caplog.records[-1].levelname == "ERROR"
+
+
+def test_constructor_validates_initial_balance_through_setter():
+    with pytest.raises(ValueError):
+        BankAccount("1234567890", balance=-10.0)
